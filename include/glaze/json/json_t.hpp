@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <boost/container/stable_vector.hpp>
 #include <cstddef>
 #include <map>
 #include <variant>
@@ -25,7 +26,7 @@ namespace glz
    // Generic json type.
    struct json_t
    {
-      using array_t = std::vector<json_t>;
+      using array_t = boost::container::stable_vector<json_t>;
       using object_t = std::map<std::string, json_t, std::less<>>;
       using null_t = std::nullptr_t;
       using val_t = std::variant<null_t, double, std::string, bool, array_t, object_t>;
@@ -64,9 +65,15 @@ namespace glz
          return std::holds_alternative<T>(data);
       }
 
-      json_t& operator[](std::integral auto&& index) { return std::get<array_t>(data)[index]; }
+      json_t& operator[](int index)
+      {
+         if (!is_array()) data = array_t{};
+         auto& arr = get_array();
+         if (index >= int(arr.size())) arr.resize(index + 1);
+         return arr[index];
+      }
 
-      const json_t& operator[](std::integral auto&& index) const { return std::get<array_t>(data)[index]; }
+      const json_t& operator[](int index) const { return std::get<array_t>(data)[index]; }
 
       json_t& operator[](std::convertible_to<std::string_view> auto&& key)
       {
@@ -103,7 +110,8 @@ namespace glz
          return iter != object.end();
       }
 
-      explicit operator bool() const { return !std::holds_alternative<null_t>(data); }
+      // explicit operator bool() const { return !std::holds_alternative<null_t>(data); }
+      inline bool operator==(const json_t& other) const = default;
 
       val_t* operator->() noexcept { return &data; }
 
