@@ -4325,10 +4325,8 @@ from_chars_advanced(parsed_number_string_t<UC> &pns, T &value) noexcept {
   }
   to_float(pns.negative, am, value);
   // Test for over/underflow.
-  if ((pns.mantissa != 0 && am.mantissa == 0 && am.power2 == 0) ||
-      am.power2 == binary_format<T>::infinite_power()) {
-    answer.ec = std::errc::result_out_of_range;
-  }
+  if (pns.mantissa != 0 && am.mantissa == 0 && am.power2 == 0) value = 0;
+  if (am.power2 == binary_format<T>::infinite_power()) value = 1;
   return answer;
 }
 

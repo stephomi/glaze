@@ -41,6 +41,8 @@ namespace glz
 #include "glaze/forward.hpp"
 #include "glaze/util/expected.hpp"
 
+#include <boost/container/stable_vector.hpp>
+
 #if defined(_MSC_VER) && !defined(__clang__)
 // Turn off broken MSVC warning for "declaration of 'v' hides previous local declaration"
 #pragma warning(push)
@@ -113,7 +115,7 @@ namespace glz
    {
       ~generic_json() = default;
 
-      using array_t = std::vector<generic_json<Mode, MapType>>;
+      using array_t = boost::container::stable_vector<generic_json<Mode, MapType>>;
       using object_t = MapType<generic_json<Mode, MapType>>;
       using null_t = std::nullptr_t;
 
@@ -202,9 +204,21 @@ namespace glz
          return std::holds_alternative<T>(data);
       }
 
+#ifdef IS_NOMAD
+      inline bool operator==(const generic_json& other) const = default;
+      generic_json& operator[](int index)
+      {
+         if (!is_array()) data = array_t{};
+         auto& arr = get_array();
+         if (index >= int(arr.size())) arr.resize(index + 1);
+         return arr[index];
+      }
+      const generic_json& operator[](int index) const { return std::get<array_t>(data)[index]; }
+#else
       generic_json& operator[](std::integral auto&& index) { return std::get<array_t>(data)[index]; }
 
       const generic_json& operator[](std::integral auto&& index) const { return std::get<array_t>(data)[index]; }
+#endif
 
       generic_json& operator[](std::convertible_to<std::string_view> auto&& key)
       {
@@ -227,6 +241,7 @@ namespace glz
          return iter->second;
       }
 
+#ifndef IS_NOMAD
       generic_json& operator=(const std::nullptr_t value)
       {
          data = value;
@@ -305,6 +320,7 @@ namespace glz
          data = value;
          return *this;
       }
+#endif
 
       template <class T>
          requires(assignable_generic_type<generic_json<Mode, MapType>, T>)
